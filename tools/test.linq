@@ -1,16 +1,20 @@
 <Query Kind="Program">
-  <Reference Relative="bin\Debug\net6.0\logtool.dll">D:\Src\logtool\bin\Debug\net6.0\logtool.dll</Reference>
+  <Reference Relative="..\src\logtool\bin\Debug\net6.0\logtool.dll">D:\Src\logtool\src\logtool\bin\Debug\net6.0\logtool.dll</Reference>
   <NuGetReference>Microsoft.Data.Sqlite</NuGetReference>
   <Namespace>Microsoft.Data.Sqlite</Namespace>
   <Namespace>static logtool.LogEntryDataFunctions</Namespace>
+  <RuntimeVersion>6.0</RuntimeVersion>
 </Query>
 
 void Main()
 {
     var workingDirectory = Path.GetDirectoryName(Util.CurrentQueryPath);
+    var artifactsDirectory = workingDirectory + @"\..\artifacts";
+    
+    Directory.CreateDirectory(artifactsDirectory);
     
     var files = new[] { @"C:\Users\me\Desktop\u_ex220218_x.log" };
-    var db = workingDirectory + @"\tmp.db";
+    var db = artifactsDirectory + @"\tmp.db";
 
     var connectionStringBuilder = new SqliteConnectionStringBuilder {
         DataSource = db,
@@ -20,7 +24,7 @@ void Main()
 
     var connectionString = connectionStringBuilder.ToString();
 
-    var (valid, logColumns, error) = ValidateColumns(files);
+    var (valid, logColumns, error) = ValidateAndReturnColumns(files);
 
     // logColumns.Dump("Source Log Columns");
 
@@ -45,4 +49,6 @@ void Main()
     ResetDatabase(conn);
 
     var count = PopulateDatabaseFromFiles(conn, files, databaseColumns);
+    
+    ReleaseDatabaseLock();
 }

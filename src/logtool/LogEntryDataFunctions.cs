@@ -256,4 +256,7 @@ public static class LogEntryDataFunctions
 
         return resultCount;
     }
+
+    public static void ReleaseDatabaseLock() =>
+        SqliteConnection.ClearAllPools();
 }
