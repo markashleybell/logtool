@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using static logtool.LogEntryDataFunctions;
+using static logtool.ui.Functions.Functions;
 
 namespace logtool.ui.Controllers
 {
@@ -37,10 +38,8 @@ namespace logtool.ui.Controllers
         [Route("selectfiles")]
         public IActionResult SelectFiles(SelectFilesRequest request)
         {
-            var tempPath = Path.GetTempPath();
-
             var connectionStringBuilder = new SqliteConnectionStringBuilder {
-                DataSource = tempPath + @"\logtool.db",
+                DataSource = GetDatabasePath(),
                 Mode = SqliteOpenMode.ReadWriteCreate
             };
 

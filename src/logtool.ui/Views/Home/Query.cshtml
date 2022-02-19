@@ -1,0 +1,27 @@
+﻿@using Microsoft.AspNetCore.Html
+@model QueryViewModel
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - LogTool</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <table class="table">
+        @foreach (var row in Model.Rows)
+        {
+            var rowHtml = new HtmlString("<td>" + string.Join("</td><td>", row) + "</td>");
+
+            <tr>@(rowHtml)</tr>
+        }
+    </table>
+</body>
+</html>

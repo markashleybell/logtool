@@ -25,3 +25,16 @@
 </form>
 
 <div id="loadedfiles"></div>
+
+<form id="query" asp-action="Query" asp-controller="Home" method="post" target="results">
+    <div class="row mb-2">
+        <div class="col">
+            <textarea name="query" class="form-control" placeholder="Query" aria-label="Query">SELECT * FROM entries</textarea>
+        </div>
+        <div class="col">
+            <button type="submit" class="btn btn-primary">Query</button>
+        </div>
+    </div>
+</form>
+
+<iframe id="results" name="results"></iframe>
