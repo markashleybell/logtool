@@ -2,7 +2,26 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<form id="getfiles" asp-action="GetFiles" asp-controller="Api">
+    <div class="row mb-2">
+        <div class="col">
+            <input type="text" id="folder" name="folder" class="form-control" placeholder="Folder" aria-label="Folder" value="C:\Users\me\Desktop" />
+        </div>
+        <div class="col">
+            <button type="submit" class="btn btn-primary">Load Files</button>
+        </div>
+    </div>
+</form>
+
+<form id="selectfiles" asp-action="SelectFiles" asp-controller="Api">
+    <div class="row mb-2">
+        <div class="col">
+            <select multiple id="files" name="files" class="form-control"></select>
+        </div>
+        <div class="col">
+            <button type="submit" class="btn btn-primary">Select Files</button>
+        </div>
+    </div>
+</form>
+
+<div id="loadedfiles"></div>

@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "sourceMap": true,
+        "skipLibCheck": true,
+        "noImplicitAny": true,
+        "noEmitOnError": true,
+        "typeRoots": [
+            "./node_modules/@types"
+        ],
+        "baseUrl": "wwwroot/js"
+    },
+    "compileOnSave": true
+}
