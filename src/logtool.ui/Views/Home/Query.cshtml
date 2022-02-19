@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-    <table class="table">
+    <table class="table table-condensed table-results">
         @foreach (var row in Model.Rows)
         {
             var rowHtml = new HtmlString("<td>" + string.Join("</td><td>", row) + "</td>");

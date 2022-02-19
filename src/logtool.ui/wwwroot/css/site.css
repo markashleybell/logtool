@@ -21,3 +21,12 @@ body {
     width: 100%;
     height: 600px;
 }
+
+.table-results {
+    display: none;
+}
+
+.table-results td {
+    white-space: nowrap;
+    font-size: 0.8rem;
+}
