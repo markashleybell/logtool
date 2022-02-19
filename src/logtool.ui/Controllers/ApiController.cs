@@ -65,7 +65,7 @@ namespace logtool.ui.Controllers
 
             var count = PopulateDatabaseFromFiles(conn, request.Files, databaseColumns);
 
-            var response = SelectFilesResponse.Success(request.Files, errors);
+            var response = SelectFilesResponse.Success(request.Files, databaseColumns, errors);
 
             return Json(response, _jsonOptions);
         }

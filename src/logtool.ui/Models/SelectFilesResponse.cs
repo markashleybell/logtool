@@ -2,20 +2,27 @@ namespace logtool.ui.Models;
 
 public class SelectFilesResponse
 {
-    internal SelectFilesResponse(string[] files, string[] validationErrors, string[] missingColumnErrors)
+    internal SelectFilesResponse(
+        string[] files,
+        IEnumerable<DatabaseColumn> databaseColumns,
+        string[] validationErrors,
+        string[] missingColumnErrors)
     {
         Files = files ?? throw new ArgumentNullException(nameof(files));
+        DatabaseColumns = databaseColumns ?? Enumerable.Empty<DatabaseColumn>();
         ValidationErrors = validationErrors ?? Array.Empty<string>();
         MissingColumnErrors = missingColumnErrors ?? Array.Empty<string>();
     }
 
     public static SelectFilesResponse ValidationError(string[] files, string error) =>
-        new(files, new[] { error }, null);
+        new(files, null, new[] { error }, null);
 
-    public static SelectFilesResponse Success(string[] files, IEnumerable<string> errors) =>
-        new(files, null, errors.ToArray());
+    public static SelectFilesResponse Success(string[] files, IEnumerable<DatabaseColumn> databaseColumns, IEnumerable<string> errors) =>
+        new(files, databaseColumns, null, errors.ToArray());
 
     public string[] Files { get; }
+
+    public IEnumerable<DatabaseColumn> DatabaseColumns { get; }
 
     public string[] ValidationErrors { get; }
 
