@@ -13,6 +13,8 @@ public class HomeController : Controller
 
     public HomeController(ILogger<HomeController> logger)
     {
+        _logger = logger;
+
         var connectionStringBuilder = new SqliteConnectionStringBuilder {
             DataSource = GetDatabasePath(),
             Mode = SqliteOpenMode.ReadOnly
@@ -28,8 +30,10 @@ public class HomeController : Controller
         return View(model);
     }
 
-    public IActionResult Query(string query)
+    public IActionResult Query(string query, int page = 1)
     {
+        const int perPage = 5000;
+
         IEnumerable<string[]> GetResults()
         {
             using var conn = new SqliteConnection(_connectionString);
@@ -38,7 +42,10 @@ public class HomeController : Controller
 
             var command = conn.CreateCommand();
 
-            command.CommandText = query;
+            command.CommandText = $"{query} {(!query.Contains("ORDER BY", StringComparison.OrdinalIgnoreCase) ? "ORDER BY date" : "")} LIMIT {perPage * (page - 1)}, {perPage}";
+
+            _logger.LogInformation(GetDatabasePath());
+            _logger.LogInformation(command.CommandText);
 
             using var reader = command.ExecuteReader();
 
@@ -53,6 +60,7 @@ public class HomeController : Controller
         }
 
         var model = new QueryViewModel {
+            Page = page,
             Rows = GetResults()
         };
 

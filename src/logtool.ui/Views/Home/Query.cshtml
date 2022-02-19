@@ -15,13 +15,22 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-    <table class="table table-condensed table-results">
-        @foreach (var row in Model.Rows)
+    <table id="table-results" class="table table-striped table-hover table-sm table-results">
+        <thead>
+            @{ var headerHtml = new HtmlString("<th>" + string.Join("</th><th>", Model.Rows.First()) + "</th>"); }
+            <tr>@(headerHtml)</tr>
+        </thead>
+        <tbody>
+        @foreach (var row in Model.Rows.Skip(1))
         {
             var rowHtml = new HtmlString("<td>" + string.Join("</td><td>", row) + "</td>");
 
             <tr>@(rowHtml)</tr>
         }
+        </tbody>
     </table>
+    <script>
+        document.getElementById('table-results').style.display = 'table';
+    </script>
 </body>
 </html>

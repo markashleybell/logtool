@@ -26,7 +26,12 @@ body {
     display: none;
 }
 
+.table-results thead {
+    position: sticky;
+    inset-block-start: 0;
+}
+
 .table-results td {
     white-space: nowrap;
-    font-size: 0.8rem;
+    /*font-size: 0.8rem;*/
 }
