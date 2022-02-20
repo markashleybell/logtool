@@ -1,6 +1,8 @@
 using logtool.ui.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
+using static logtool.LogEntryDataFunctions;
+using static logtool.ui.Constants;
 using static logtool.ui.Functions.Functions;
 
 namespace logtool.ui.Controllers;
@@ -32,7 +34,7 @@ public class HomeController : Controller
 
     public IActionResult Query(string query, int page = 1)
     {
-        const int perPage = 5000;
+        var (select, where, orderby, limit) = ParseSqlQuery(query);
 
         IEnumerable<string[]> GetResults()
         {
@@ -42,10 +44,9 @@ public class HomeController : Controller
 
             var command = conn.CreateCommand();
 
-            command.CommandText = $"{query} {(!query.Contains("ORDER BY", StringComparison.OrdinalIgnoreCase) ? "ORDER BY date" : "")} LIMIT {perPage * (page - 1)}, {perPage}";
+            command.CommandText = $"{select} {where} {orderby ?? "ORDER BY date"} {limit ?? $"LIMIT {MaxResultsPerPage * (page - 1)}, {MaxResultsPerPage}"}";
 
-            _logger.LogInformation(GetDatabasePath());
-            _logger.LogInformation(command.CommandText);
+            LogQueryInformation(command);
 
             using var reader = command.ExecuteReader();
 
@@ -65,5 +66,12 @@ public class HomeController : Controller
         };
 
         return View(model);
+    }
+
+    private void LogQueryInformation(SqliteCommand command)
+    {
+        _logger.LogInformation("Request: {Url}", Request.Path);
+        _logger.LogInformation("Database path: {DatabasePath}", GetDatabasePath());
+        _logger.LogInformation("Command: {CommandText}", command.CommandText);
     }
 }

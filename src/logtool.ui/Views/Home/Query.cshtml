@@ -16,18 +16,36 @@
 </head>
 <body>
     <table id="table-results" class="table table-striped table-hover table-sm table-results">
-        <thead>
-            @{ var headerHtml = new HtmlString("<th>" + string.Join("</th><th>", Model.Rows.First()) + "</th>"); }
-            <tr>@(headerHtml)</tr>
-        </thead>
-        <tbody>
-        @foreach (var row in Model.Rows.Skip(1))
-        {
-            var rowHtml = new HtmlString("<td>" + string.Join("</td><td>", row) + "</td>");
+        @{
+            using (var enumerator = Model.Rows.GetEnumerator())
+            {
+                var firstRow = true;
+                var lastRow = !enumerator.MoveNext();
 
-            <tr>@(rowHtml)</tr>
+                while (!lastRow)
+                {
+                    var row = enumerator.Current;
+
+                    if (firstRow)
+                    {
+                        @(new HtmlString("<thead><tr><th>" + string.Join("</th><th>", row) + "</th></tr></thead><tbody>"))
+
+                        firstRow = false;
+                    }
+                    else
+                    {
+                        @(new HtmlString("<tr><td>" + string.Join("</td><td>", row) + "</td></tr>"))
+                    }
+
+                    lastRow = !enumerator.MoveNext();
+
+                    if (lastRow)
+                    {
+                        @(new HtmlString("</tbody>"))
+                    }
+                }
+            }
         }
-        </tbody>
     </table>
     <script>
         document.getElementById('table-results').style.display = 'table';

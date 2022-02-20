@@ -4,38 +4,46 @@
 
 <form id="getfiles" asp-action="GetFiles" asp-controller="Api">
     <div class="row mb-2">
-        <div class="col">
-            <input type="text" id="folder" name="folder" class="form-control" placeholder="Folder" aria-label="Folder" value="C:\Users\me\Desktop" />
+        <div class="col-md-6">
+            <input type="text" id="folder" name="folder" class="form-control" placeholder="Folder" aria-label="Folder" value="" />
         </div>
-        <div class="col">
-            <button type="submit" class="btn btn-primary">Load Files</button>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary">Load File List</button>
         </div>
     </div>
 </form>
 
 <form id="selectfiles" asp-action="SelectFiles" asp-controller="Api">
     <div class="row mb-2">
-        <div class="col">
+        <div class="col-md-6">
             <select multiple id="files" name="files" class="form-control"></select>
         </div>
-        <div class="col">
+        <div class="col-md-1">
             <button type="submit" class="btn btn-primary">Select Files</button>
         </div>
+        <div class="col-md-1">
+            <div id="dataloading" class="loading"></div>
+        </div>
     </div>
 </form>
 
-<div id="loadedfiles"></div>
-
-<form id="query" asp-action="Query" asp-controller="Home" method="post" target="results">
+<form id="runquery" asp-action="Query" asp-controller="Home" method="post" target="results">
     <div class="row mb-2">
-        <div class="col">
-            <textarea name="query" class="form-control" placeholder="Query" aria-label="Query">SELECT * FROM entries</textarea>
-            <input type="hidden" name="page" value="1" />
+        <div class="col-md-6">
+            <textarea name="query" id="query" class="form-control" placeholder="Query" aria-label="Query"></textarea>
+            <input type="hidden" id="page" name="page" value="1" />
         </div>
-        <div class="col">
-            <button type="submit" class="btn btn-primary">Query</button>
+        <div class="col-md-1">
+            <button type="submit" id="querysubmit" class="btn btn-primary">Query</button>
+        </div>
+        <div class="col-md-1">
+            <div id="queryloading" class="loading"></div>
         </div>
     </div>
 </form>
+
+<nav aria-label="Page navigation">
+    <ul class="pagination" id="pagination"></ul>
+</nav>
 
 <iframe id="results" name="results"></iframe>

@@ -259,4 +259,39 @@ public static class LogEntryDataFunctions
 
     public static void ReleaseDatabaseLock() =>
         SqliteConnection.ClearAllPools();
+
+    public static (string select, string? where, string? orderby, string? limit) ParseSqlQuery(string sqlQuery)
+    {
+        var select = sqlQuery;
+
+        var limit = default(string);
+        var orderby = default(string);
+        var where = default(string);
+
+        var limitIndex = select.IndexOf("LIMIT", StringComparison.OrdinalIgnoreCase);
+
+        if (limitIndex != -1)
+        {
+            limit = select[limitIndex..];
+            select = select.Replace(limit, string.Empty);
+        }
+
+        var orderbyIndex = select.IndexOf("ORDER BY", StringComparison.OrdinalIgnoreCase);
+
+        if (orderbyIndex != -1)
+        {
+            orderby = select[orderbyIndex..];
+            select = select.Replace(orderby, string.Empty);
+        }
+
+        var whereIndex = select.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase);
+
+        if (whereIndex != -1)
+        {
+            where = select[whereIndex..];
+            select = select.Replace(where, string.Empty);
+        }
+
+        return (select, where, orderby, limit);
+    }
 }

@@ -11,24 +11,33 @@ void Main()
     var workingDirectory = Path.GetDirectoryName(Util.CurrentQueryPath);
     var artifactsDirectory = workingDirectory + @"\..\artifacts";
     
-    Directory.CreateDirectory(artifactsDirectory);
+    var query = "select * from entries where xlkjlkaf order by y limit 10";
     
-    var files = new[] { @"C:\Users\me\Desktop\u_ex220218_x.log" };
-    var db = artifactsDirectory + @"\tmp.db";
-
-    var connectionStringBuilder = new SqliteConnectionStringBuilder {
-        DataSource = db,
-        Mode = SqliteOpenMode.ReadWriteCreate
-        // Mode = SqliteOpenMode.Memory
-    };
-
-    var connectionString = connectionStringBuilder.ToString();
-
-    var (valid, logColumns, error) = ValidateAndReturnColumns(files);
+    var (select, where, orderby, limit) = ParseSqlQuery(query);
+    
+    select.Dump("SELECT");
+    where.Dump("WHERE");
+    orderby.Dump("ORDER BY");
+    limit.Dump("LIMIT");
+    
+//    Directory.CreateDirectory(artifactsDirectory);
+//    
+//    var files = new[] { @"C:\Users\me\Desktop\u_ex220218_x.log" };
+//    var db = artifactsDirectory + @"\tmp.db";
+//
+//    var connectionStringBuilder = new SqliteConnectionStringBuilder {
+//        DataSource = db,
+//        Mode = SqliteOpenMode.ReadWriteCreate
+//        // Mode = SqliteOpenMode.Memory
+//    };
+//
+//    var connectionString = connectionStringBuilder.ToString();
+//
+//    var (valid, logColumns, error) = ValidateAndReturnColumns(files);
 
     // logColumns.Dump("Source Log Columns");
 
-    var (databaseColumns, errors) = GetDatabaseColumns(logColumns, DefaultIISW3CLogMappings);
+    // var (databaseColumns, errors) = GetDatabaseColumns(logColumns, DefaultIISW3CLogMappings);
 
     // databaseColumns.Dump("Database Columns");
 
@@ -41,14 +50,19 @@ void Main()
     //var lines = File.ReadLines(file);
     //
     //lines.Select(l => l.Split(' ')).Count().Dump();
+//
+//    using var conn = new SqliteConnection(connectionString);
+//
+//    conn.Open();
+//
+//    ResetDatabase(conn);
+//
+//    var count = PopulateDatabaseFromFiles(conn, files, databaseColumns);
+//    
+//    ReleaseDatabaseLock();
+}
 
-    using var conn = new SqliteConnection(connectionString);
-
-    conn.Open();
-
-    ResetDatabase(conn);
-
-    var count = PopulateDatabaseFromFiles(conn, files, databaseColumns);
+public static class TestHarness
+{
     
-    ReleaseDatabaseLock();
 }
