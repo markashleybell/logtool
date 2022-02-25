@@ -3,6 +3,7 @@ const getFilesFolderInput = document.getElementById('folder');
 const selectFilesForm = document.getElementById('selectfiles');
 const selectFilesFilesInput = document.getElementById('files');
 const dataLoader = document.getElementById('dataloading');
+const columns = document.getElementById('columns');
 const queryForm = document.getElementById('runquery');
 const queryFormQueryInput = document.getElementById('query');
 const queryFormPageInput = document.getElementById('page');
@@ -38,15 +39,21 @@ function post(endpoint, data, callback) {
         .then(callback)
         .catch((error) => window.alert(error));
 }
-getFilesForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    const request = {
-        folder: getFilesFolderInput.value
-    };
-    post(getFormAction(e), request, response => {
+function displayColumns(columns) {
+    return 'Columns: ' + columns.map(c => `${c.name} [${c.dataTypeString}]`).join(', ');
+}
+function loadFiles(folder, onFilesLoaded) {
+    post(getFilesForm.action, { folder: folder }, response => {
         localStorage.setItem('folder', getFilesFolderInput.value);
         selectFilesFilesInput.innerHTML = response.map((f) => '<option>' + f + '</option>').join('');
+        if (typeof onFilesLoaded === 'function') {
+            onFilesLoaded();
+        }
     });
+}
+getFilesForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    loadFiles(getFilesFolderInput.value);
 });
 selectFilesForm.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -57,9 +64,11 @@ selectFilesForm.addEventListener('submit', function (e) {
         files: selectedFiles
     };
     dataLoader.innerText = 'Loading...';
-    post(getFormAction(e), request, response => {
+    post(getFormAction(e), request, (response) => {
         localStorage.setItem('files', response.files.join('|'));
         dataLoader.innerText = '';
+        localStorage.setItem('columns', JSON.stringify(response.databaseColumns));
+        columns.innerText = displayColumns(response.databaseColumns);
     });
 });
 queryFormSubmitButton.addEventListener('click', function (e) {
@@ -100,12 +109,21 @@ document.addEventListener('click', function (e) {
 });
 const previousFolder = localStorage.getItem('folder');
 const previousFiles = localStorage.getItem('files');
+const previousColumns = localStorage.getItem('columns');
 const previousQuery = localStorage.getItem('query');
 if (previousFolder) {
     getFilesFolderInput.value = previousFolder;
-}
-if (previousFiles) {
-    selectFilesFilesInput.innerHTML = previousFiles.split('|').map((f) => '<option>' + f + '</option>').join('');
+    loadFiles(getFilesFolderInput.value, () => {
+        if (previousFiles) {
+            const filesToSelect = previousFiles.split('|');
+            Array.from(selectFilesFilesInput.options)
+                .filter(o => filesToSelect.includes(o.text))
+                .forEach(o => { o.selected = true; });
+        }
+        if (previousColumns) {
+            columns.innerText = displayColumns(JSON.parse(previousColumns));
+        }
+    });
 }
 queryFormQueryInput.value = previousQuery !== null && previousQuery !== void 0 ? previousQuery : "SELECT * FROM entries LIMIT 100";
 //# sourceMappingURL=site.js.map

@@ -1,3 +1,25 @@
+interface IDatabaseColumnSource {
+    index: number;
+    name: string;
+}
+
+interface IDatabaseColumn {
+    index: number;
+    name: string;
+    dataType: number;
+    sources: IDatabaseColumnSource[];
+    dataTypeString: string;
+    parameterName: string;
+}
+
+interface ISelectFilesResponse {
+    files: string[];
+    databaseColumns: IDatabaseColumn[];
+    validationErrors: string[];
+    missingColumnErrors: string[]
+    errorsOccurred: boolean;
+}
+
 const getFilesForm = document.getElementById('getfiles') as HTMLFormElement;
 const getFilesFolderInput = document.getElementById('folder') as HTMLInputElement;
 
@@ -5,6 +27,8 @@ const selectFilesForm = document.getElementById('selectfiles') as HTMLFormElemen
 const selectFilesFilesInput = document.getElementById('files') as HTMLSelectElement;
 
 const dataLoader = document.getElementById('dataloading') as HTMLDivElement;
+
+const columns = document.getElementById('columns') as HTMLDivElement;
 
 const queryForm = document.getElementById('runquery') as HTMLFormElement;
 const queryFormQueryInput = document.getElementById('query') as HTMLInputElement;
@@ -52,17 +76,25 @@ function post(endpoint: string, data: any, callback: (data: any) => void) {
     .catch((error) => window.alert(error));
 }
 
+function displayColumns(columns: IDatabaseColumn[]) {
+    return 'Columns: ' + columns.map(c => `${c.name} [${c.dataTypeString}]`).join(', ');
+}
+
+function loadFiles(folder: string, onFilesLoaded?: () => void) {
+    post(getFilesForm.action, { folder: folder }, response => {
+        localStorage.setItem('folder', getFilesFolderInput.value);
+        selectFilesFilesInput.innerHTML = response.map((f: string) => '<option>' + f + '</option>').join('');
+
+        if (typeof onFilesLoaded === 'function') {
+            onFilesLoaded();
+        }
+    });
+}
+
 getFilesForm.addEventListener('submit', function (e) {
     e.preventDefault();
 
-    const request = {
-        folder: getFilesFolderInput.value
-    };
-
-    post(getFormAction(e), request, response => {
-        localStorage.setItem('folder', getFilesFolderInput.value);
-        selectFilesFilesInput.innerHTML = response.map((f: string) => '<option>' + f + '</option>').join('');
-    });
+    loadFiles(getFilesFolderInput.value);
 });
 
 selectFilesForm.addEventListener('submit', function (e) {
@@ -78,9 +110,12 @@ selectFilesForm.addEventListener('submit', function (e) {
 
     dataLoader.innerText = 'Loading...';
 
-    post(getFormAction(e), request, response => {
+    post(getFormAction(e), request, (response: ISelectFilesResponse) => {
         localStorage.setItem('files', response.files.join('|'));
         dataLoader.innerText = '';
+
+        localStorage.setItem('columns', JSON.stringify(response.databaseColumns));
+        columns.innerText = displayColumns(response.databaseColumns);
     });
 });
 
@@ -131,14 +166,28 @@ document.addEventListener('click', function (e) {
 
 const previousFolder = localStorage.getItem('folder');
 const previousFiles = localStorage.getItem('files');
+const previousColumns = localStorage.getItem('columns');
 const previousQuery = localStorage.getItem('query');
 
 if (previousFolder) {
     getFilesFolderInput.value = previousFolder;
+
+    loadFiles(getFilesFolderInput.value, () => {
+        if (previousFiles) {
+            const filesToSelect = previousFiles.split('|');
+
+            Array.from(selectFilesFilesInput.options)
+                .filter(o => filesToSelect.includes(o.text))
+                .forEach(o => { o.selected = true; });
+        }
+        if (previousColumns) {
+            columns.innerText = displayColumns(JSON.parse(previousColumns));
+        }
+    });
 }
 
-if (previousFiles) {
-    selectFilesFilesInput.innerHTML = previousFiles.split('|').map((f: string) => '<option>' + f + '</option>').join('');
-}
+
+
+
 
 queryFormQueryInput.value = previousQuery ?? "SELECT * FROM entries LIMIT 100";
