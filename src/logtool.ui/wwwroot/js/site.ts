@@ -20,47 +20,20 @@ interface ISelectFilesResponse {
     errorsOccurred: boolean;
 }
 
-const getFilesForm = document.getElementById('getfiles') as HTMLFormElement;
-const getFilesFolderInput = document.getElementById('folder') as HTMLInputElement;
-
-const selectFilesForm = document.getElementById('selectfiles') as HTMLFormElement;
-const selectFilesFilesInput = document.getElementById('files') as HTMLSelectElement;
-
-const dataLoader = document.getElementById('dataloading') as HTMLDivElement;
-
-const columns = document.getElementById('columns') as HTMLDivElement;
-
-const queryForm = document.getElementById('runquery') as HTMLFormElement;
-const queryFormQueryInput = document.getElementById('query') as HTMLInputElement;
-const queryFormPageInput = document.getElementById('page') as HTMLInputElement;
-const queryFormSubmitButton = document.getElementById('querysubmit') as HTMLButtonElement;
-
-const queryLoader = document.getElementById('queryloading') as HTMLDivElement;
-
-const pagination = document.getElementById('pagination') as HTMLUListElement;
-
-const resultsFrame = document.getElementById('results') as HTMLIFrameElement;
-
-function getFormAction(e: SubmitEvent) {
-    return (e.target as HTMLFormElement).action;
+interface IGlobals {
+    clientID: string;
 }
 
-function paginationLink(page: number, active: boolean) {
-    return `<li class="page-item${(active ? ' active' : '')}"><a class="page-link page-link-direct" href="#" data-page="${page}">${page}</a></li>`;
-}
-
-function buildPagination(pages: number, active: number) {
-    const links = [
-        '<li class="page-item"><a class="page-link page-link-prev" href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>'
-    ];
-
-    for (let i = 1; i <= pages; i++) {
-        links.push(paginationLink(i, i === active));
-    }
-
-    links.push('<li class="page-item"><a class="page-link page-link-next" href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>');
-
-    return links.join('');
+function get(endpoint: string, callback: (data: any) => void) {
+    fetch(endpoint, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(callback)
+    .catch((error) => window.alert(error));
 }
 
 function post(endpoint: string, data: any, callback: (data: any) => void) {
@@ -76,118 +49,206 @@ function post(endpoint: string, data: any, callback: (data: any) => void) {
     .catch((error) => window.alert(error));
 }
 
-function displayColumns(columns: IDatabaseColumn[]) {
-    return 'Columns: ' + columns.map(c => `${c.name} [${c.dataTypeString}]`).join(', ');
-}
+function init(clientID: string) {
+    const getFilesForm = document.getElementById('getfiles') as HTMLFormElement;
+    const getFilesFolderInput = document.getElementById('folder') as HTMLInputElement;
 
-function loadFiles(folder: string, onFilesLoaded?: () => void) {
-    post(getFilesForm.action, { folder: folder }, response => {
-        localStorage.setItem('folder', getFilesFolderInput.value);
-        selectFilesFilesInput.innerHTML = response.map((f: string) => '<option>' + f + '</option>').join('');
+    const selectFilesForm = document.getElementById('selectfiles') as HTMLFormElement;
+    const selectFilesFilesInput = document.getElementById('files') as HTMLSelectElement;
 
-        if (typeof onFilesLoaded === 'function') {
-            onFilesLoaded();
+    const dataLoader = document.getElementById('dataloading') as HTMLDivElement;
+
+    const columns = document.getElementById('columns') as HTMLDivElement;
+
+    const queryForm = document.getElementById('runquery') as HTMLFormElement;
+    const queryFormQueryInput = document.getElementById('query') as HTMLInputElement;
+    const queryFormPageInput = document.getElementById('page') as HTMLInputElement;
+    const queryFormClientIdInput = document.getElementById('clientid') as HTMLInputElement;
+    const queryFormSubmitButton = document.getElementById('querysubmit') as HTMLButtonElement;
+
+    const queryLoader = document.getElementById('queryloading') as HTMLDivElement;
+
+    const pagination = document.getElementById('pagination') as HTMLUListElement;
+
+    const resultsFrame = document.getElementById('results') as HTMLIFrameElement;
+
+    queryFormClientIdInput.value = clientID;
+
+    const source = new EventSource('/api/subscribe/' + clientID);
+
+    source.onmessage = function (event: any) {
+        window.location.href = '/home/downloadexport/' + clientID;
+    };
+
+    source.onopen = function (event: any) {
+        // console.log('onopen', event);
+    };
+
+    source.onerror = function (event: any) {
+        // console.log('onerror', event);
+    };
+
+    function getFormAction(e: SubmitEvent) {
+        return (e.target as HTMLFormElement).action;
+    }
+
+    function paginationLink(page: number, active: boolean) {
+        return `<li class="page-item${(active ? ' active' : '')}"><a class="page-link page-link-direct" href="#" data-page="${page}">${page}</a></li>`;
+    }
+
+    function buildPagination(pages: number, active: number) {
+        const links = [
+            '<li class="page-item"><a class="page-link page-link-prev" href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>'
+        ];
+
+        for (let i = 1; i <= pages; i++) {
+            links.push(paginationLink(i, i === active));
         }
-    });
-}
 
-getFilesForm.addEventListener('submit', function (e) {
-    e.preventDefault();
+        links.push('<li class="page-item"><a class="page-link page-link-next" href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>');
 
-    loadFiles(getFilesFolderInput.value);
-});
+        return links.join('');
+    }
 
-selectFilesForm.addEventListener('submit', function (e) {
-    e.preventDefault();
+    function displayColumns(columns: IDatabaseColumn[]) {
+        return 'Columns: ' + columns.map(c => `${c.name} [${c.dataTypeString}]`).join(', ');
+    }
 
-    const selectedFiles = Array
-        .from(selectFilesFilesInput.selectedOptions)
-        .map(o => o.value);
+    function loadFiles(folder: string, onFilesLoaded?: () => void) {
+        post(getFilesForm.action, { folder: folder }, response => {
+            localStorage.setItem('folder', getFilesFolderInput.value);
+            selectFilesFilesInput.innerHTML = response.map((f: string) => '<option>' + f + '</option>').join('');
 
-    const request = {
-        files: selectedFiles
-    };
+            if (typeof onFilesLoaded === 'function') {
+                onFilesLoaded();
+            }
+        });
+    }
 
-    dataLoader.innerText = 'Loading...';
-
-    post(getFormAction(e), request, (response: ISelectFilesResponse) => {
-        localStorage.setItem('files', response.files.join('|'));
-        dataLoader.innerText = '';
-
-        localStorage.setItem('columns', JSON.stringify(response.databaseColumns));
-        columns.innerText = displayColumns(response.databaseColumns);
-    });
-});
-
-queryFormSubmitButton.addEventListener('click', function (e) {
-    queryLoader.innerText = 'Loading...';
-
-    queryFormPageInput.value = '1';
-
-    const request = {
-        query: queryFormQueryInput.value
-    };
-
-    post('/api/resultcount', request, response => {
-        localStorage.setItem('query', queryFormQueryInput.value);
-        pagination.innerHTML = buildPagination(response.totalPages, 1);
-        dataLoader.innerText = '';
-    });
-});
-
-resultsFrame.addEventListener('load', function (e) {
-    queryLoader.innerText = '';
-});
-
-document.addEventListener('click', function (e) {
-    const a = (e.target as HTMLAnchorElement);
-
-    if (a.classList.contains('page-link')) {
+    getFilesForm.addEventListener('submit', function (e) {
         e.preventDefault();
 
-        const currentPage = parseInt(queryFormPageInput.value, 10);
-        let newPage = -1;
-        if (a.classList.contains('page-link-prev')) {
-            newPage = currentPage - 1;
-        } else if (a.classList.contains('page-link-next')) {
-            newPage = currentPage + 1;
-        } else {
-            newPage = parseInt(a.getAttribute('data-page'), 10);
-        }
+        loadFiles(getFilesFolderInput.value);
+    });
 
-        Array.from(pagination.getElementsByClassName('active')).forEach(el => el.classList.remove('active'));
-        pagination.querySelector('[data-page="' + newPage + '"]').parentElement.classList.add('active');
+    selectFilesForm.addEventListener('submit', function (e) {
+        e.preventDefault();
 
-        queryFormPageInput.value = newPage.toString();
+        const selectedFiles = Array
+            .from(selectFilesFilesInput.selectedOptions)
+            .map(o => o.value);
 
-        queryForm.requestSubmit();
-    }
-});
+        const request = {
+            clientID: clientID,
+            files: selectedFiles
+        };
 
-const previousFolder = localStorage.getItem('folder');
-const previousFiles = localStorage.getItem('files');
-const previousColumns = localStorage.getItem('columns');
-const previousQuery = localStorage.getItem('query');
+        dataLoader.innerText = 'Loading...';
 
-if (previousFolder) {
-    getFilesFolderInput.value = previousFolder;
+        post(getFormAction(e), request, (response: ISelectFilesResponse) => {
+            localStorage.setItem('files', response.files.join('|'));
+            dataLoader.innerText = '';
 
-    loadFiles(getFilesFolderInput.value, () => {
-        if (previousFiles) {
-            const filesToSelect = previousFiles.split('|');
+            localStorage.setItem('columns', JSON.stringify(response.databaseColumns));
+            columns.innerText = displayColumns(response.databaseColumns);
+        });
+    });
 
-            Array.from(selectFilesFilesInput.options)
-                .filter(o => filesToSelect.includes(o.text))
-                .forEach(o => { o.selected = true; });
-        }
-        if (previousColumns) {
-            columns.innerText = displayColumns(JSON.parse(previousColumns));
+    queryFormSubmitButton.addEventListener('click', function (e) {
+        queryLoader.innerText = 'Loading...';
+
+        queryFormPageInput.value = '1';
+
+        const request = {
+            clientID: clientID,
+            query: queryFormQueryInput.value
+        };
+
+        post('/api/resultcount', request, response => {
+            localStorage.setItem('query', queryFormQueryInput.value);
+            pagination.innerHTML = buildPagination(response.totalPages, 1);
+            dataLoader.innerText = '';
+        });
+    });
+
+    resultsFrame.addEventListener('load', function (e) {
+        queryLoader.innerText = '';
+    });
+
+    document.addEventListener('click', function (e) {
+        const a = (e.target as HTMLAnchorElement);
+
+        if (a.classList.contains('page-link')) {
+            e.preventDefault();
+
+            const currentPage = parseInt(queryFormPageInput.value, 10);
+            let newPage = -1;
+            if (a.classList.contains('page-link-prev')) {
+                newPage = currentPage - 1;
+            } else if (a.classList.contains('page-link-next')) {
+                newPage = currentPage + 1;
+            } else {
+                newPage = parseInt(a.getAttribute('data-page'), 10);
+            }
+
+            Array.from(pagination.getElementsByClassName('active')).forEach(el => el.classList.remove('active'));
+            pagination.querySelector('[data-page="' + newPage + '"]').parentElement.classList.add('active');
+
+            queryFormPageInput.value = newPage.toString();
+
+            queryForm.requestSubmit();
         }
     });
+
+    document.getElementById('export').addEventListener('click', function (e) {
+        e.preventDefault();
+
+        //get('/api/rowcount', response => {
+        //    console.log(response);
+        //});
+
+        const request = {
+            clientID: clientID,
+            query: queryFormQueryInput.value
+        };
+
+        post('/api/export', request, (response: any) => {
+            console.log(response);
+        });
+    });
+
+    const previousFolder = localStorage.getItem('folder');
+    const previousFiles = localStorage.getItem('files');
+    const previousColumns = localStorage.getItem('columns');
+    const previousQuery = localStorage.getItem('query');
+
+    if (previousFolder) {
+        getFilesFolderInput.value = previousFolder;
+
+        loadFiles(getFilesFolderInput.value, () => {
+            if (previousFiles) {
+                const filesToSelect = previousFiles.split('|');
+
+                Array.from(selectFilesFilesInput.options)
+                    .filter(o => filesToSelect.includes(o.text))
+                    .forEach(o => { o.selected = true; });
+            }
+            if (previousColumns) {
+                columns.innerText = displayColumns(JSON.parse(previousColumns));
+            }
+        });
+    }
+
+    queryFormQueryInput.value = previousQuery ?? "SELECT * FROM entries LIMIT 100";
 }
 
+const previousClientID = localStorage.getItem('clientid');
 
-
-
-
-queryFormQueryInput.value = previousQuery ?? "SELECT * FROM entries LIMIT 100";
+if (previousClientID) {
+    init(previousClientID);
+} else {
+    post('/api/newclientid', {}, (id: string) => {
+        localStorage.setItem('clientid', id);
+        init(id);
+    });
+}

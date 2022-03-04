@@ -1,3 +1,5 @@
+using System.Text.Json;
+using logtool.ui.Infrastructure;
 using logtool.ui.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
@@ -10,19 +12,14 @@ namespace logtool.ui.Controllers;
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
+    private readonly IAppClient _appClient;
 
-    private readonly string _connectionString;
-
-    public HomeController(ILogger<HomeController> logger)
+    public HomeController(
+        ILogger<HomeController> logger,
+        IAppClient appClient)
     {
         _logger = logger;
-
-        var connectionStringBuilder = new SqliteConnectionStringBuilder {
-            DataSource = GetDatabasePath(),
-            Mode = SqliteOpenMode.ReadOnly
-        };
-
-        _connectionString = connectionStringBuilder.ToString();
+        _appClient = appClient;
     }
 
     public IActionResult Index()
@@ -32,13 +29,13 @@ public class HomeController : Controller
         return View(model);
     }
 
-    public IActionResult Query(string query, int page = 1)
+    public IActionResult Query(Guid clientID, string query, int page = 1)
     {
         var (select, where, orderby, limit) = ParseSqlQuery(query);
 
         IEnumerable<string[]> GetResults()
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = new SqliteConnection(_appClient.GetConnectionString(clientID));
 
             conn.Open();
 
@@ -68,10 +65,12 @@ public class HomeController : Controller
         return View(model);
     }
 
+    public IActionResult DownloadExport(Guid id) =>
+        File(_appClient.GetCsvExportDownloadUrl(id), "text/csv", fileDownloadName: $"logtool-export-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.csv");
+
     private void LogQueryInformation(SqliteCommand command)
     {
         _logger.LogInformation("Request: {Url}", Request.Path);
-        _logger.LogInformation("Database path: {DatabasePath}", GetDatabasePath());
         _logger.LogInformation("Command: {CommandText}", command.CommandText);
     }
 }

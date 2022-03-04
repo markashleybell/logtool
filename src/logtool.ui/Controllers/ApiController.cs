@@ -1,10 +1,10 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using logtool.ui.Infrastructure;
 using logtool.ui.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using static logtool.LogEntryDataFunctions;
-using static logtool.ui.Constants;
 using static logtool.ui.Functions.Functions;
 
 namespace logtool.ui.Controllers
@@ -13,51 +13,58 @@ namespace logtool.ui.Controllers
     [Route("api")]
     public class ApiController : Controller
     {
-        private readonly JsonSerializerOptions _jsonOptions = new() {
+        private const int ReconnectionInterval = 3000;
+
+        private static readonly JsonSerializerOptions _jsonOptions = new() {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
         private readonly ILogger<ApiController> _logger;
+        private readonly IJobQueue _jobQueue;
+        private readonly IAppClient _appClient;
 
-        private readonly string _connectionString;
-
-        public ApiController(ILogger<ApiController> logger)
+        public ApiController(
+            ILogger<ApiController> logger,
+            IJobQueue jobQueue,
+            IAppClient appClient)
         {
             _logger = logger;
+            _jobQueue = jobQueue;
+            _appClient = appClient;
+        }
 
-            var connectionStringBuilder = new SqliteConnectionStringBuilder {
-                DataSource = GetDatabasePath(),
-                Mode = SqliteOpenMode.ReadWriteCreate
-            };
+        [HttpPost]
+        [Route("newclientid")]
+        public Guid NewClientID()
+        {
+            var id = Guid.NewGuid();
 
-            _connectionString = connectionStringBuilder.ToString();
+            Directory.CreateDirectory(_appClient.GetDataDirectoryPath(id));
+
+            return id;
         }
 
         [HttpPost]
         [Route("getfiles")]
-        public IActionResult GetFiles(GetFilesRequest request)
-        {
-            var files = Directory.GetFiles(request.Folder, "*.log");
-
-            return Json(files, _jsonOptions);
-        }
+        public string[] GetFiles(GetFilesRequest request) =>
+            Directory.GetFiles(request.Folder, "*.log");
 
         [HttpPost]
         [Route("selectfiles")]
-        public IActionResult SelectFiles(SelectFilesRequest request)
+        public SelectFilesResponse SelectFiles(SelectFilesRequest request)
         {
             var (valid, logColumns, error) = ValidateAndReturnColumns(request.Files);
 
             if (!valid)
             {
-                var errorResponse = SelectFilesResponse.ValidationError(request.Files, error);
-
-                return Json(errorResponse);
+                return SelectFilesResponse.ValidationError(request.Files, error);
             }
 
             var (databaseColumns, errors) = GetDatabaseColumns(logColumns, DefaultIISW3CLogMappings);
 
-            using var conn = new SqliteConnection(_connectionString);
+            var connectionString = _appClient.GetConnectionString(request.ClientID, SqliteOpenMode.ReadWriteCreate);
+
+            using var conn = new SqliteConnection(connectionString);
 
             conn.Open();
 
@@ -65,14 +72,31 @@ namespace logtool.ui.Controllers
 
             var count = PopulateDatabaseFromFiles(conn, request.Files, databaseColumns);
 
-            var response = SelectFilesResponse.Success(request.Files, databaseColumns, errors);
+            return SelectFilesResponse.Success(request.Files, databaseColumns, errors);
+        }
 
-            return Json(response, _jsonOptions);
+        [HttpGet]
+        [Route("rowcount")]
+        public RowCountResponse RowCount(RowCountRequest request)
+        {
+            using var conn = new SqliteConnection(_appClient.GetConnectionString(request.ClientID));
+
+            conn.Open();
+
+            var command = conn.CreateCommand();
+
+            command.CommandText = "SELECT COUNT(*) FROM entries";
+
+            LogQueryInformation(command);
+
+            return new RowCountResponse {
+                TotalRows = Convert.ToInt32(command.ExecuteScalar())
+            };
         }
 
         [HttpPost]
         [Route("resultcount")]
-        public IActionResult ResultCount(ResultCountRequest request)
+        public ResultCountResponse ResultCount(ResultCountRequest request)
         {
             var (_, where, _, limit) = ParseSqlQuery(request.Query);
 
@@ -83,15 +107,13 @@ namespace logtool.ui.Controllers
 
                 var limitCount = int.TryParse(limitMatch.Groups["perpage"].Value, out var n) ? n : 10;
 
-                var limitResponse = new ResultCountResponse {
+                return new ResultCountResponse {
                     TotalResults = limitCount,
                     TotalPages = GetPageCount(limitCount)
                 };
-
-                return Json(limitResponse, _jsonOptions);
             }
 
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = new SqliteConnection(_appClient.GetConnectionString(request.ClientID));
 
             conn.Open();
 
@@ -103,18 +125,75 @@ namespace logtool.ui.Controllers
 
             var count = Convert.ToInt32(command.ExecuteScalar());
 
-            var response = new ResultCountResponse {
+            return new ResultCountResponse {
                 TotalResults = count,
                 TotalPages = GetPageCount(count)
             };
+        }
 
-            return Json(response, _jsonOptions);
+        [HttpPost]
+        [Route("export")]
+        public bool Export(ExportRequest request)
+        {
+            var job = new CsvExportJob(request.ClientID, _appClient, request.Query, _appClient.GetCsvExportTempPath(request.ClientID));
+
+            _jobQueue.FileProcessingJobs.Enqueue(job);
+
+            return true;
+        }
+
+        [HttpGet]
+        [Route("subscribe/{clientID}")]
+        public async Task Subscribe(Guid clientID, CancellationToken cancellationToken)
+        {
+            Response.Headers.Add("Content-Type", "text/event-stream");
+            Response.Headers.Add("Cache-Control", "no-cache");
+            Response.Headers.Add("Connection", "keep-alive");
+
+            async void OnFileProcessingJobCompleted(object _, FileProcessingJobCompletedEventArgs eventArgs)
+            {
+                if (eventArgs.Job.ClientID != clientID)
+                {
+                    return;
+                }
+
+                try
+                {
+                    var json = JsonSerializer.Serialize(new { eventArgs.Message }, _jsonOptions);
+
+                    await Response.WriteAsync($"retry: {ReconnectionInterval}\r", cancellationToken);
+                    await Response.WriteAsync($"data: {json}\r\r", cancellationToken);
+
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Failed to send notification: {Message}", ex.Message);
+                }
+            }
+
+            _jobQueue.OnFileProcessingJobCompleted += OnFileProcessingJobCompleted;
+
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(1000, cancellationToken);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                _logger.LogDebug("Task cancelled in Subscribe endpoint: user disconnected");
+            }
+            finally
+            {
+                _jobQueue.OnFileProcessingJobCompleted -= OnFileProcessingJobCompleted;
+            }
         }
 
         private void LogQueryInformation(SqliteCommand command)
         {
             _logger.LogInformation("Request: {Url}", Request.Path);
-            _logger.LogInformation("Database path: {DatabasePath}", GetDatabasePath());
             _logger.LogInformation("Command: {CommandText}", command.CommandText);
         }
     }

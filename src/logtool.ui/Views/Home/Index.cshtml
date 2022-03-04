@@ -34,6 +34,7 @@
         <div class="col-md-6">
             <textarea name="query" id="query" class="form-control" placeholder="Query" aria-label="Query"></textarea>
             <input type="hidden" id="page" name="page" value="1" />
+            <input type="hidden" id="clientid" name="clientid" value="1" />
         </div>
         <div class="col-md-1">
             <button type="submit" id="querysubmit" class="btn btn-primary">Query</button>
@@ -47,5 +48,7 @@
 <nav aria-label="Page navigation">
     <ul class="pagination" id="pagination"></ul>
 </nav>
+
+<p><a id="export" href="#">Export CSV</a></p>
 
 <iframe id="results" name="results"></iframe>

@@ -6,15 +6,16 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="CsvHelper" Version="27.2.1" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.2" />
-        <PackageReference Include="Microsoft.TypeScript.MSBuild" Version="4.5.3">
+        <PackageReference Include="Microsoft.TypeScript.MSBuild" Version="4.6.2">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\logtool\logtool.csproj" />
+        <ProjectReference Include="..\logtool\logtool.csproj" />
     </ItemGroup>
 
 </Project>

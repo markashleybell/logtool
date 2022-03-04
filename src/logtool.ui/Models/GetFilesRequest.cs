@@ -1,6 +1,6 @@
 namespace logtool.ui.Models;
 
-public class GetFilesRequest
+public class GetFilesRequest: ApiRequestBase
 {
     public string Folder { get; set; }
 }
