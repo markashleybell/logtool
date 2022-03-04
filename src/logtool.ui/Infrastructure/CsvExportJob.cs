@@ -50,7 +50,7 @@ public class CsvExportJob : FileProcessingJob
         }
 
         var cfg = new CsvConfiguration(CultureInfo.InvariantCulture) {
-            ShouldQuote = _ => false
+            ShouldQuote = _ => true
         };
 
         using var writer = new StreamWriter(_appClient.GetCsvExportTempPath(ClientID), new FileStreamOptions { Mode = FileMode.Create, Access = FileAccess.Write });
