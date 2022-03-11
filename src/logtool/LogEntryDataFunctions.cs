@@ -193,16 +193,34 @@ public static class LogEntryDataFunctions
     public static SqliteParameter[] GenerateInsertParameters(IEnumerable<DatabaseColumn> columns) =>
         columns.Select(c => new SqliteParameter(c.ParameterName, c.DataType)).ToArray();
 
+    public static void CreateDatabaseTable(SqliteConnection connection, IEnumerable<DatabaseColumn> databaseColumns)
+    {
+        using var createCmd = new SqliteCommand(GenerateTableSql(databaseColumns), connection);
+
+        createCmd.ExecuteNonQuery();
+    }
+
+    public static void CreateDatabaseIndexes(SqliteConnection connection, IEnumerable<DatabaseColumn> databaseColumns)
+    {
+        using var indexCmd = connection.CreateCommand();
+
+        var databaseColumnNames = databaseColumns.Select(c => c.Name);
+
+        // Get any indexes where all key column names exist in the list of database columns
+        var indexes = DefaultIndexes
+            .Where(i => !i.Key.Except(databaseColumnNames).Any())
+            .Select(i => $"CREATE INDEX {i.Value} ON `entries`(`{string.Join("`, `", i.Key)}`);");
+
+        indexCmd.CommandText = string.Join(Environment.NewLine, indexes);
+        indexCmd.ExecuteNonQuery();
+    }
+
     public static int PopulateDatabaseFromFiles(SqliteConnection connection, IEnumerable<string> files, IEnumerable<DatabaseColumn> databaseColumns)
     {
         var resultCount = 0;
 
         var sql = GenerateInsertSql(databaseColumns);
         var parameters = GenerateInsertParameters(databaseColumns);
-
-        using var createCmd = new SqliteCommand(GenerateTableSql(databaseColumns), connection);
-
-        createCmd.ExecuteNonQuery();
 
         using var pragmaCmd = connection.CreateCommand();
 
@@ -221,15 +239,45 @@ public static class LogEntryDataFunctions
 
         foreach (var file in files)
         {
-            var lines = File.ReadLines(file);
+            var currentLine = 0;
 
-            foreach (var line in lines.Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")))
+            foreach (var line in File.ReadLines(file))
             {
+                currentLine++;
+
+                if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
                 var rowValues = line.Split(' ');
+
+                //if (rowValues.Length != parameters.Length)
+                //{
+                //    throw new Exception($"Error in {file}, line {currentLine}: line has {rowValues.Length} columns, expected {parameters.Length}");
+                //}
+
+                var error = false;
 
                 foreach (var c in databaseColumns)
                 {
-                    parameters[c.Index].Value = c.GetValue(rowValues);
+                    try
+                    {
+                        parameters[c.Index].Value = c.GetValue(rowValues);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = true;
+
+                        // TODO: Log and return errors for individual lines
+
+                        // throw new Exception($"Error in {file}, line {currentLine}: GetValue threw exception for {c.Name}", ex);
+                    }
+                }
+
+                if (error)
+                {
+                    continue;
                 }
 
                 // parameters.Dump();
@@ -241,18 +289,6 @@ public static class LogEntryDataFunctions
         }
 
         transaction.Commit();
-
-        using var indexCmd = connection.CreateCommand();
-
-        var databaseColumnNames = databaseColumns.Select(c => c.Name);
-
-        // Get any indexes where all key column names exist in the list of database columns
-        var indexes = DefaultIndexes
-            .Where(i => !i.Key.Except(databaseColumnNames).Any())
-            .Select(i => $"CREATE INDEX {i.Value} ON `entries`(`{string.Join("`, `", i.Key)}`);");
-
-        indexCmd.CommandText = string.Join(Environment.NewLine, indexes);
-        indexCmd.ExecuteNonQuery();
 
         return resultCount;
     }

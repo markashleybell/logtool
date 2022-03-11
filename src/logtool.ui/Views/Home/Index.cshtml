@@ -21,8 +21,8 @@
         <div class="col-md-1">
             <button type="submit" class="btn btn-primary">Select Files</button>
         </div>
-        <div class="col-md-1">
-            <div id="dataloading" class="loading"></div>
+        <div class="col-md-5">
+            <div id="dataloading" class="loading loading-hidden">Working... <span id="dataloading-status"></span>@* [<span id="dataloading-current">-1</span> of <span id="dataloading-total">-1</span> files]*@</div>
         </div>
     </div>
 </form>
@@ -40,7 +40,7 @@
             <button type="submit" id="querysubmit" class="btn btn-primary">Query</button>
         </div>
         <div class="col-md-1">
-            <div id="queryloading" class="loading"></div>
+            <div id="queryloading" class="loading loading-hidden"></div>
         </div>
     </div>
 </form>

@@ -27,6 +27,9 @@ function init(clientID) {
     const selectFilesForm = document.getElementById('selectfiles');
     const selectFilesFilesInput = document.getElementById('files');
     const dataLoader = document.getElementById('dataloading');
+    const dataLoaderStatus = document.getElementById('dataloading-status');
+    const dataLoaderCurrent = document.getElementById('dataloading-current');
+    const dataLoaderTotal = document.getElementById('dataloading-total');
     const columns = document.getElementById('columns');
     const queryForm = document.getElementById('runquery');
     const queryFormQueryInput = document.getElementById('query');
@@ -37,9 +40,39 @@ function init(clientID) {
     const pagination = document.getElementById('pagination');
     const resultsFrame = document.getElementById('results');
     queryFormClientIdInput.value = clientID;
+    function showDataLoader() {
+        dataLoader.classList.remove('loading-hidden');
+        updateDataLoader('');
+    }
+    function updateDataLoader(status, current, total) {
+        dataLoaderStatus.innerText = status;
+        //dataLoaderCurrent.innerText = current.toString();
+        //dataLoaderTotal.innerText = total.toString();
+    }
+    function hideDataLoader() {
+        dataLoader.classList.add('loading-hidden');
+    }
+    function showQueryLoader() {
+        queryLoader.classList.remove('loading-hidden');
+    }
+    function hideQueryLoader() {
+        queryLoader.classList.add('loading-hidden');
+    }
     const source = new EventSource('/api/subscribe/' + clientID);
     source.onmessage = function (event) {
-        window.location.href = '/home/downloadexport/' + clientID;
+        const eventData = JSON.parse(event.data);
+        console.log(eventData);
+        switch (eventData.type) {
+            case 'logimport':
+                updateDataLoader('Imported ' + eventData.entryCount + ' entries from ' + eventData.file);
+                if (eventData.queueCompleted) {
+                    setTimeout(hideDataLoader, 2000);
+                }
+                break;
+            case 'csvexport':
+                window.location.href = '/home/downloadexport/' + clientID;
+                break;
+        }
     };
     source.onopen = function (event) {
         // console.log('onopen', event);
@@ -88,16 +121,16 @@ function init(clientID) {
             clientID: clientID,
             files: selectedFiles
         };
-        dataLoader.innerText = 'Loading...';
+        showDataLoader();
         post(getFormAction(e), request, (response) => {
             localStorage.setItem('files', response.files.join('|'));
-            dataLoader.innerText = '';
+            // hideDataLoader();
             localStorage.setItem('columns', JSON.stringify(response.databaseColumns));
             columns.innerText = displayColumns(response.databaseColumns);
         });
     });
     queryFormSubmitButton.addEventListener('click', function (e) {
-        queryLoader.innerText = 'Loading...';
+        showQueryLoader();
         queryFormPageInput.value = '1';
         const request = {
             clientID: clientID,
@@ -106,7 +139,7 @@ function init(clientID) {
         post('/api/resultcount', request, response => {
             localStorage.setItem('query', queryFormQueryInput.value);
             pagination.innerHTML = buildPagination(response.totalPages, 1);
-            dataLoader.innerText = '';
+            hideQueryLoader();
         });
     });
     resultsFrame.addEventListener('load', function (e) {

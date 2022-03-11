@@ -57,6 +57,9 @@ function init(clientID: string) {
     const selectFilesFilesInput = document.getElementById('files') as HTMLSelectElement;
 
     const dataLoader = document.getElementById('dataloading') as HTMLDivElement;
+    const dataLoaderStatus = document.getElementById('dataloading-status') as HTMLElement;
+    const dataLoaderCurrent = document.getElementById('dataloading-current') as HTMLElement;
+    const dataLoaderTotal = document.getElementById('dataloading-total') as HTMLElement;
 
     const columns = document.getElementById('columns') as HTMLDivElement;
 
@@ -74,10 +77,49 @@ function init(clientID: string) {
 
     queryFormClientIdInput.value = clientID;
 
+
+    function showDataLoader() {
+        dataLoader.classList.remove('loading-hidden');
+        updateDataLoader('');
+    }
+
+    function updateDataLoader(status: string, current?: number, total?: number) {
+        dataLoaderStatus.innerText = status;
+        //dataLoaderCurrent.innerText = current.toString();
+        //dataLoaderTotal.innerText = total.toString();
+    }
+
+    function hideDataLoader() {
+        dataLoader.classList.add('loading-hidden');
+    }
+
+    function showQueryLoader() {
+        queryLoader.classList.remove('loading-hidden');
+    }
+
+    function hideQueryLoader() {
+        queryLoader.classList.add('loading-hidden');
+    }
+
+
     const source = new EventSource('/api/subscribe/' + clientID);
 
     source.onmessage = function (event: any) {
-        window.location.href = '/home/downloadexport/' + clientID;
+        const eventData = JSON.parse(event.data);
+
+        console.log(eventData);
+
+        switch (eventData.type) {
+            case 'logimport':
+                updateDataLoader('Imported ' + eventData.entryCount + ' entries from ' + eventData.file);
+                if (eventData.queueCompleted) {
+                    setTimeout(hideDataLoader, 2000);
+                }
+                break;
+            case 'csvexport':
+                window.location.href = '/home/downloadexport/' + clientID;
+                break;
+        }
     };
 
     source.onopen = function (event: any) {
@@ -143,11 +185,11 @@ function init(clientID: string) {
             files: selectedFiles
         };
 
-        dataLoader.innerText = 'Loading...';
+        showDataLoader();
 
         post(getFormAction(e), request, (response: ISelectFilesResponse) => {
             localStorage.setItem('files', response.files.join('|'));
-            dataLoader.innerText = '';
+            // hideDataLoader();
 
             localStorage.setItem('columns', JSON.stringify(response.databaseColumns));
             columns.innerText = displayColumns(response.databaseColumns);
@@ -155,7 +197,7 @@ function init(clientID: string) {
     });
 
     queryFormSubmitButton.addEventListener('click', function (e) {
-        queryLoader.innerText = 'Loading...';
+        showQueryLoader();
 
         queryFormPageInput.value = '1';
 
@@ -167,7 +209,7 @@ function init(clientID: string) {
         post('/api/resultcount', request, response => {
             localStorage.setItem('query', queryFormQueryInput.value);
             pagination.innerHTML = buildPagination(response.totalPages, 1);
-            dataLoader.innerText = '';
+            hideQueryLoader();
         });
     });
 

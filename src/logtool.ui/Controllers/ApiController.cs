@@ -70,7 +70,14 @@ namespace logtool.ui.Controllers
 
             ResetDatabase(conn);
 
-            var count = PopulateDatabaseFromFiles(conn, request.Files, databaseColumns);
+            CreateDatabaseTable(conn, databaseColumns);
+
+            foreach (var file in request.Files)
+            {
+                _jobQueue.Enqueue(new LogImportJob(request.ClientID, _appClient, databaseColumns, file));
+            }
+
+            _jobQueue.AddingCompleted();
 
             return SelectFilesResponse.Success(request.Files, databaseColumns, errors);
         }
@@ -137,7 +144,9 @@ namespace logtool.ui.Controllers
         {
             var job = new CsvExportJob(request.ClientID, _appClient, request.Query, _appClient.GetCsvExportTempPath(request.ClientID));
 
-            _jobQueue.FileProcessingJobs.Enqueue(job);
+            _jobQueue.Enqueue(job);
+
+            _jobQueue.AddingCompleted();
 
             return true;
         }
@@ -159,7 +168,25 @@ namespace logtool.ui.Controllers
 
                 try
                 {
-                    var json = JsonSerializer.Serialize(new { eventArgs.Message }, _jsonOptions);
+                    if (eventArgs.Job is LogImportJob job && eventArgs.QueueCompleted)
+                    {
+                        // Last job was a log import, and all log imports are complete, so create the DB indexes
+                        var connectionString = _appClient.GetConnectionString(clientID, SqliteOpenMode.ReadWriteCreate);
+
+                        using var conn = new SqliteConnection(connectionString);
+
+                        conn.Open();
+
+                        CreateDatabaseIndexes(conn, job.DatabaseColumns);
+                    }
+
+                    object messageData = eventArgs.Job switch {
+                        LogImportJob logImportJob => new { type = "logimport", file = Path.GetFileName(logImportJob.File), logImportJob.EntryCount, eventArgs.QueueCompleted, eventArgs.Message },
+                        CsvExportJob csvExportJob => new { type = "csvexport", eventArgs.QueueCompleted, eventArgs.Message },
+                        _ => throw new NotImplementedException($"Unknown job type: {eventArgs.Job.GetType().Name}")
+                    };
+
+                    var json = JsonSerializer.Serialize(messageData, _jsonOptions);
 
                     await Response.WriteAsync($"retry: {ReconnectionInterval}\r", cancellationToken);
                     await Response.WriteAsync($"data: {json}\r\r", cancellationToken);

@@ -41,6 +41,10 @@ html {
     margin-top: 0.3rem;
 }
 
+.loading-hidden {
+    display: none;
+}
+
 .page-link span {
     pointer-events: none;
 }

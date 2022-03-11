@@ -23,10 +23,18 @@ public class FileProcessingService : BackgroundService
         {
             await Task.Delay(_loopInterval, cancellationToken);
 
-            if (_jobQueue.FileProcessingJobs.TryDequeue(out var job))
+            if (!_jobQueue.IsEmpty && _jobQueue.TryDequeue(out var job))
             {
                 switch (job)
                 {
+                    case LogImportJob logImportJob:
+                        await logImportJob.ProcessFile();
+
+                        _jobQueue.NotifyJobCompleted(logImportJob);
+
+                        _logger.LogInformation("Import processed");
+
+                        break;
                     case CsvExportJob csvExportJob:
                         await csvExportJob.ProcessFile();
 
